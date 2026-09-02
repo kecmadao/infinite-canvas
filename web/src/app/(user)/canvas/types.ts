@@ -232,6 +232,7 @@ export type CanvasAgentToolCall = {
     id: string;
     name: string;
     arguments: Record<string, unknown>;
+    argumentsError?: string;
 };
 
 export type CanvasAgentProtocolMessage =
@@ -253,12 +254,17 @@ export type CanvasAssistantMessage = {
     skillsSelected?: boolean;
 };
 
+export type CanvasAgentJsonFallbackMode = "structured-json" | "prompt-json";
+export type CanvasAgentToolMode = "native" | CanvasAgentJsonFallbackMode;
+
 export type CanvasAssistantSession = {
     id: string;
     title: string;
     messages: CanvasAssistantMessage[];
     agentState: CanvasAgentState;
     protocolMessages: CanvasAgentProtocolMessage[];
+    jsonToolFallbackKey?: string;
+    jsonToolFallbackMode?: CanvasAgentJsonFallbackMode;
     activeSkills?: CanvasAgentSkillSelection[];
     contextCheckpoint?: string;
     createdAt: string;

@@ -306,6 +306,7 @@ export function CanvasAssistantPanel({
             activeChannelId: effectiveConfig.textChannelId || effectiveConfig.activeChannelId,
             textChannelId: effectiveConfig.textChannelId,
         };
+        const jsonToolFallbackKey = [requestConfig.apiMode || "chat", requestConfig.textChannelId || requestConfig.activeChannelId || requestConfig.baseUrl, requestConfig.model].join("|");
         if (!isAiConfigReady(requestConfig, requestConfig.model)) {
             updateMessage(session.id, assistantId, {
                 text: "全局文本模型尚未配置完成。请先从应用原有的全局配置入口选择文本模型和渠道，然后再继续。",
@@ -337,6 +338,7 @@ export function CanvasAssistantPanel({
                 references: modelReferences,
                 activeSkillContents,
                 contextCheckpoint: session.contextCheckpoint,
+                preferredJsonMode: session.jsonToolFallbackKey === jsonToolFallbackKey ? session.jsonToolFallbackMode || "structured-json" : undefined,
                 getContext: getAgentContext,
                 executeAction: async (action) => {
                     if (action.name === "read_skill_file") {
@@ -369,6 +371,8 @@ export function CanvasAssistantPanel({
                         agentState: checkpoint.state,
                         protocolMessages: checkpoint.protocolMessages,
                         contextCheckpoint: checkpoint.contextCheckpoint,
+                        jsonToolFallbackKey: checkpoint.jsonFallbackMode ? jsonToolFallbackKey : undefined,
+                        jsonToolFallbackMode: checkpoint.jsonFallbackMode,
                         updatedAt: new Date().toISOString(),
                     })),
             });
@@ -377,6 +381,8 @@ export function CanvasAssistantPanel({
                 agentState: result.state,
                 protocolMessages: result.protocolMessages,
                 contextCheckpoint: result.contextCheckpoint,
+                jsonToolFallbackKey: result.jsonFallbackMode ? jsonToolFallbackKey : undefined,
+                jsonToolFallbackMode: result.jsonFallbackMode,
                 messages: current.messages.map((message) =>
                     message.id === assistantId ? { ...message, text: result.reply, status: "success", activity: undefined } : message,
                 ),
