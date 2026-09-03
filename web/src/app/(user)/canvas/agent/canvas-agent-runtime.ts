@@ -227,7 +227,7 @@ export async function runCanvasAgent(input: RunCanvasAgentInput): Promise<RunCan
         if (!actions.length) {
             const reply = (parsedJson.parsed ? parsedJson.reply : turn.content).trim();
             if (!hasExecutedActions && !reply && userLikelyRequestedCanvasAction(input.userText)) {
-                const unsupported = "当前接口没有返回可执行的画布工具指令。请点击输入框右下角的大脑图标，尝试切换 Chat / Responses，或更换支持 Tool Calling 或稳定 JSON 输出的文本模型。";
+                const unsupported = "当前接口没有返回可执行的画布工具指令。请在 Agent 设置中尝试切换 Chat / Responses，或更换支持 Tool Calling 或稳定 JSON 输出的文本模型。";
                 protocolMessages = [...protocolMessages, { role: "assistant" as const, content: unsupported }];
                 return { reply: unsupported, state, protocolMessages: persistCanvasAgentProtocolMessages(protocolMessages), contextCheckpoint, jsonFallbackMode: usedJsonFallbackMode };
             }

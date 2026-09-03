@@ -2,7 +2,7 @@ import { mimoTextModels } from "@/lib/mimo-tts";
 import { dataUrlToGeminiInlineData, geminiActionUrl, geminiDirectHeaders, geminiErrorMessage, isGeminiConfig } from "@/lib/gemini";
 import { aiApiUrl, aiHeaders, refreshRemoteUser } from "@/services/api/image";
 import { imageToDataUrl } from "@/services/image-storage";
-import { localChannelForActiveModel, type AiConfig } from "@/stores/use-config-store";
+import { channelProtocolForConfig, localChannelForActiveModel, type AiConfig } from "@/stores/use-config-store";
 import type { CanvasAgentProtocolMessage, CanvasAgentToolCall, CanvasAgentToolMode } from "@/app/(user)/canvas/types";
 import type { CanvasAgentToolDefinition } from "@/app/(user)/canvas/agent/canvas-agent-tools";
 import { calibrateCanvasAgentTokenEstimate } from "@/app/(user)/canvas/agent/canvas-agent-memory";
@@ -95,6 +95,16 @@ class CanvasAgentRequestError extends Error {
     }
 }
 
+type CanvasAgentAiConfig = AiConfig & { textReasoningEnabled?: boolean };
+
+function applyCanvasAgentReasoning(body: Record<string, unknown>, config: CanvasAgentAiConfig, mode: "chat" | "responses" | "gemini") {
+    if (!config.textReasoningEnabled) return;
+    if (mode === "responses") body.reasoning = { effort: "high" };
+    else if (mode === "gemini") body.generationConfig = { ...((body.generationConfig as Record<string, unknown> | undefined) || {}), thinkingConfig: config.model.toLowerCase().includes("2.5") ? { thinkingBudget: -1 } : { thinkingLevel: "high" } };
+    else if (channelProtocolForConfig(config) === "mimo") body.thinking = { type: "enabled" };
+    else body.reasoning_effort = "high";
+}
+
 export async function requestCanvasAgentTurn(input: RequestCanvasAgentTurnInput): Promise<CanvasAgentModelTurn> {
     const requestConfig = {
         ...input.config,
@@ -175,6 +185,7 @@ async function requestCompletion(config: AiConfig, systemPrompt: string, message
         body.tool_choice = "auto";
     }
     if (jsonSchema) body.response_format = { type: "json_schema", json_schema: { name: "canvas_agent_actions", schema: jsonSchema } };
+    applyCanvasAgentReasoning(body, config, "chat");
 
     const response = await fetch(aiApiUrl(config, "/chat/completions"), {
         method: "POST",
@@ -235,6 +246,7 @@ async function requestResponsesCompletion(config: AiConfig, systemPrompt: string
         body.tool_choice = "auto";
     }
     if (jsonSchema) body.text = { format: { type: "json_schema", name: "canvas_agent_actions", schema: jsonSchema } };
+    applyCanvasAgentReasoning(body, config, "responses");
 
     const response = await fetch(aiApiUrl(config, "/responses"), {
         method: "POST",
@@ -309,6 +321,7 @@ async function requestGeminiCompletion(config: AiConfig, systemPrompt: string, m
         ...(tools.length ? { tools: [{ functionDeclarations: tools.map((tool) => tool.function) }] } : {}),
         ...(jsonSchema ? { generationConfig: { responseFormat: { text: { mimeType: "application/json", schema: jsonSchema } } } } : {}),
     };
+    applyCanvasAgentReasoning(body, config, "gemini");
     const proxy = Boolean(aiApiUrl(config, "/chat/completions").startsWith("/api/"));
     const channel = localChannelForActiveModel(config);
     const { model: _model, stream: _stream, ...nativeBody } = body;

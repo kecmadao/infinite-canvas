@@ -171,6 +171,7 @@ export type PendingAgentAsset = {
 export type CanvasPendingAgentRequest = {
     prompt: string;
     assets: PendingAgentAsset[];
+    skills: CanvasAgentSkillSelection[];
 };
 
 export type CanvasAssistantImage = {
@@ -203,6 +204,7 @@ export type CanvasAgentPhase =
 
 export type CanvasAgentConfig = {
     textApiMode: "chat" | "responses";
+    textReasoningEnabled?: boolean;
     autoGenerateMedia: boolean;
     imageQuality: string;
     imageSize: string;

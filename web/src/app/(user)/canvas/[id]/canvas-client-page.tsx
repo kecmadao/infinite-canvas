@@ -358,7 +358,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
     const [chatSessions, setChatSessions] = useState<CanvasAssistantSession[]>([]);
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [agentConfig, setAgentConfig] = useState<CanvasAgentConfig | null>(null);
-    const [initialAgentRequest, setInitialAgentRequest] = useState<{ prompt: CanvasPendingAgentRequest["prompt"]; references: CanvasAssistantReference[] } | null>(null);
+    const [initialAgentRequest, setInitialAgentRequest] = useState<{ prompt: CanvasPendingAgentRequest["prompt"]; references: CanvasAssistantReference[]; skills: CanvasPendingAgentRequest["skills"] } | null>(null);
     const [viewport, setViewport] = useState<ViewportTransform>({ x: 0, y: 0, k: 1 });
     const [canvasTool, setCanvasTool] = useState<"select" | "pan">("select");
     const [size, setSize] = useState({ width: 1200, height: 720 });
@@ -3758,7 +3758,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                 );
             }
             updateProject(projectId, { pendingAgentRequest: undefined });
-            setInitialAgentRequest({ prompt: request.prompt, references });
+            setInitialAgentRequest({ prompt: request.prompt, references, skills: request.skills });
         })().catch((error) => {
             consumedAgentRequestProjectRef.current = null;
             message.error(error instanceof Error ? error.message : "首页素材插入失败");
