@@ -409,15 +409,17 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
     const [referencePickerNodeId, setReferencePickerNodeId] = useState<string | null>(null);
     const [canvasNow, setCanvasNow] = useState(Date.now());
     const resolvedAgentConfig = useMemo<CanvasAgentConfig>(
-        () =>
-            agentConfig ? { textApiMode: "chat", autoGenerateMedia: false, ...agentConfig } : {
+        () => {
+            const defaults = { textApiMode: "chat" as const, autoGenerateMedia: false };
+            return agentConfig ? { ...defaults, ...agentConfig } : {
                 textApiMode: "chat",
                 autoGenerateMedia: false,
                 imageQuality: effectiveConfig.quality,
                 imageSize: effectiveConfig.size,
                 videoQuality: effectiveConfig.vquality,
                 videoSize: effectiveConfig.videoSize,
-            },
+            };
+        },
         [agentConfig, effectiveConfig.quality, effectiveConfig.size, effectiveConfig.videoSize, effectiveConfig.vquality],
     );
     const agentEffectiveConfig = useMemo(
