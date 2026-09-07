@@ -30,6 +30,7 @@ import { GROUP_PADDING, findContainingGroupId, findGroupDropTarget, getNodeBound
 import { App, Button, Dropdown, Modal, Slider } from "antd";
 import { isCogVideoX3Model, modelKey, supportsVideoAudioGeneration, supportsVideoFrameReferences } from "@/lib/video-model-capabilities";
 import { isMimoVoiceCloneModel } from "@/lib/mimo-tts";
+import { isAutoDLConfig } from "@/lib/autodl";
 import { isGlmTtsModel } from "@/lib/audio-generation";
 import { isGrok2APITtsConfig } from "@/lib/grok-tts";
 import { isGeminiConfig, isGeminiTtsModel } from "@/lib/gemini";
@@ -3112,7 +3113,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     const frameReferencesEnabled = supportsVideoFrameReferences(videoGenerationConfig.model, channelProtocolForConfig(videoGenerationConfig));
                     const firstFrame = frameReferencesEnabled ? generationContext.firstFrame : null;
                     const lastFrame = frameReferencesEnabled ? generationContext.lastFrame : null;
-                    const videoReferenceImages = frameReferencesEnabled ? generationContext.referenceImages : [...generationContext.referenceImages, ...[generationContext.firstFrame, generationContext.lastFrame].filter((image): image is ReferenceImage => Boolean(image))];
+                    const videoReferenceImages = frameReferencesEnabled || isAutoDLConfig(videoGenerationConfig) ? generationContext.referenceImages : [...generationContext.referenceImages, ...[generationContext.firstFrame, generationContext.lastFrame].filter((image): image is ReferenceImage => Boolean(image))];
                     const spec = nodeSizeFromRatio(videoGenerationConfig.size, NODE_DEFAULT_SIZE[CanvasNodeType.Video].width, NODE_DEFAULT_SIZE[CanvasNodeType.Video].height) || NODE_DEFAULT_SIZE[CanvasNodeType.Video];
                     const isEmptyVideoNode = sourceNode?.type === CanvasNodeType.Video && !sourceNode.metadata?.content;
                     const videoId = isEmptyVideoNode ? nodeId : nanoid();
@@ -3136,7 +3137,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                 }
 
                 if (mode === "audio") {
-                    const referenceAudio = selectMiMoVoiceCloneReference(generationConfig, sourceNode?.metadata, generationContext.referenceAudios);
+                    const referenceAudio = selectAudioReference(generationConfig, sourceNode?.metadata, generationContext.referenceAudios);
                     const spec = NODE_DEFAULT_SIZE[CanvasNodeType.Audio];
                     const isEmptyAudioNode = sourceNode?.type === CanvasNodeType.Audio && !sourceNode.metadata?.content;
                     const audioId = isEmptyAudioNode ? nodeId : nanoid();
@@ -3712,7 +3713,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
             const context = hasSavedImageMetadata ? null : await hydrateNodeGenerationContext(buildNodeGenerationContext(sourceNode.id, nodesRef.current, connectionsRef.current, sourceNode.metadata?.prompt || node.metadata?.prompt || ""));
             const prompt = (isPanorama ? savedImageMetadata?.panoramaFinalPrompt || "" : savedImageMetadata?.prompt || context?.prompt || "").trim();
             const requestPrompt = isPanorama ? prompt : applyCameraPrompt(prompt, savedImageMetadata?.cameraControl || node.metadata?.cameraControl);
-            if (!prompt) {
+            if (!prompt && !(node.type === CanvasNodeType.Video && isAutoDLConfig(generationConfig))) {
                 message.warning("找不到提示词，无法重试");
                 return;
             }
@@ -3750,13 +3751,13 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     const frameReferencesEnabled = supportsVideoFrameReferences(videoGenerationConfig.model, channelProtocolForConfig(videoGenerationConfig));
                     const firstFrame = frameReferencesEnabled ? context?.firstFrame || null : null;
                     const lastFrame = frameReferencesEnabled ? context?.lastFrame || null : null;
-                    const references = frameReferencesEnabled ? retryImages : [...retryImages, ...[context?.firstFrame, context?.lastFrame].filter((image): image is ReferenceImage => Boolean(image))];
+                    const references = frameReferencesEnabled || isAutoDLConfig(videoGenerationConfig) ? retryImages : [...retryImages, ...[context?.firstFrame, context?.lastFrame].filter((image): image is ReferenceImage => Boolean(image))];
                     const created = await createVideoGenerationTask(videoGenerationConfig, requestPrompt, { references, firstFrame, lastFrame, videoReferences: context?.referenceVideos || [], audioReferences: context?.referenceAudios || [] }, undefined, { clientTaskId: retryVideoTaskId, source: "canvas", sourceId: node.id });
                     setNodes((prev) => applyCanvasVideoTaskUpdate(prev, node.id, created.task, videoGenerationConfig, retryStartedAt, { width: node.width, height: node.height }));
                     return;
                 }
                 if (node.type === CanvasNodeType.Audio) {
-                    const referenceAudio = selectMiMoVoiceCloneReference(generationConfig, sourceNode?.metadata, context?.referenceAudios || []);
+                    const referenceAudio = selectAudioReference(generationConfig, sourceNode?.metadata, context?.referenceAudios || []);
                     const task = await createCanvasAudioTask(generationConfig, prompt, { nodeId: node.id, sourceId: projectId, clientTaskId: retryAudioTaskId }, referenceAudio);
                     setNodes((prev) => applyCanvasAudioTaskUpdate(prev.map((item) => (item.id === node.id ? { ...item, metadata: { ...item.metadata, prompt, ...buildAudioGenerationMetadata(generationConfig, sourceNode?.metadata) } } : item)), node.id, task, retryStartedAt));
                     return;
@@ -5005,12 +5006,14 @@ function buildAudioGenerationMetadata(config: AiConfig, sourceMetadata?: CanvasN
         mimoVoiceDesignPrompt: config.mimoVoiceDesignPrompt,
         geminiTtsVoice: config.geminiTtsVoice,
         mimoVoiceCloneAudioNodeId: sourceMetadata?.mimoVoiceCloneAudioNodeId,
+        referenceAudioNodeId: sourceMetadata?.referenceAudioNodeId,
     };
 }
 
-function selectMiMoVoiceCloneReference(config: AiConfig, metadata: CanvasNodeMetadata | undefined, references: ReferenceAudio[]) {
-    if (!isMimoVoiceCloneModel(config.model || config.audioModel)) return undefined;
-    const selectedId = metadata?.mimoVoiceCloneAudioNodeId || "";
+function selectAudioReference(config: AiConfig, metadata: CanvasNodeMetadata | undefined, references: ReferenceAudio[]) {
+    const autodl = isAutoDLConfig(config, config.model || config.audioModel);
+    if (!autodl && !isMimoVoiceCloneModel(config.model || config.audioModel)) return undefined;
+    const selectedId = (autodl ? metadata?.referenceAudioNodeId : metadata?.mimoVoiceCloneAudioNodeId) || "";
     if (selectedId) {
         const selected = references.find((item) => item.id === selectedId);
         if (selected) return selected;

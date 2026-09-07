@@ -8,6 +8,7 @@ import { dataUrlToGeminiInlineData, geminiActionUrl, geminiDirectHeaders, gemini
 import { imageToDataUrl, resolveImageUrl } from "@/services/image-storage";
 import { buildApiUrl, channelIdForActiveModel, channelProtocolForConfig, directAIProviderForConfig, localChannelForActiveModel, type AiConfig } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
+import { fetchAutoDLWorkflows } from "./autodl";
 import type { ReferenceImage } from "@/types/image";
 import { nanoid } from "nanoid";
 
@@ -1200,6 +1201,7 @@ export async function fetchImageModels(config: AiConfig) {
     if (config.channelMode === "remote") return config.models;
     const channel = localChannelForActiveModel(config);
     if (channel?.protocol === "gemini") return fetchGeminiModels(channel.baseUrl, channel.apiKey);
+    if (channel?.protocol === "autodl") return (await fetchAutoDLWorkflows(channel.baseUrl)).map((workflow) => workflow.uuid);
     if (isMiniMaxChannel(channel)) return [...miniMaxModels];
     if (isMimoChannel(channel || { baseUrl: config.baseUrl })) return [...mimoModels];
     try {

@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EditorView } from "@uiw/react-codemirror";
 
 import { ChannelModelSelectorModal } from "@/components/channel-model-selector-modal";
+import { useAutoDLWorkflowNames } from "@/hooks/use-autodl-workflow";
 import { modelChannelApiKeyUrls, modelChannelDefaultBaseUrls, modelChannelProtocolOptions } from "@/lib/model-channel";
 import { fetchAdminSettings, fetchChannelModels, measureAdminStorageProvider, saveAdminSettings, testChannelModel, type AdminModelChannel, type AdminModelCost, type AdminSettings, type AdminStorageProvider } from "@/services/api/admin";
 import { useUserStore } from "@/stores/use-user-store";
@@ -78,6 +79,9 @@ export default function AdminSettingsPage() {
     const publicModels = Form.useWatch(["public", "modelChannel", "availableModels"], form) || [];
     const storageProviders = Form.useWatch(["private", "storage", "providers"], form) || [];
     const channelProtocol = Form.useWatch("protocol", channelForm);
+    const channelBaseUrl = Form.useWatch("baseUrl", channelForm);
+    const modelLabel = useAutoDLWorkflowNames([...channels, { protocol: channelProtocol, baseUrl: channelBaseUrl }]);
+    const publicModelLabel = (model: string) => modelLabel(model, channels.find((channel) => channel.protocol === "autodl" && channel.models.includes(model)));
     const channelApiKeyUrl = channelProtocol ? modelChannelApiKeyUrls[channelProtocol] : undefined;
     const channelModels = useMemo(() => collectChannelModels(channels), [channels]);
     const channelTableData = useMemo(() => channels.map((channel, index) => ({ ...channel, _index: index, _rowKey: `${index}-${channel.name}-${channel.baseUrl}` })), [channels]);
@@ -273,7 +277,7 @@ export default function AdminSettingsPage() {
     };
 
     const testChannel = testChannelIndex === null ? null : normalizeChannel(channels[testChannelIndex]);
-    const testModels = (testChannel?.models || []).filter((model) => model.toLowerCase().includes(testKeyword.trim().toLowerCase()));
+    const testModels = (testChannel?.models || []).filter((model) => `${model} ${modelLabel(model, testChannel)}`.toLowerCase().includes(testKeyword.trim().toLowerCase()));
 
     async function persistChannels(nextChannels: AdminModelChannel[]) {
         if (!token) return;
@@ -372,27 +376,27 @@ export default function AdminSettingsPage() {
                                 <Row gutter={16}>
                                     <Col span={24}>
                                         <Form.Item name={["public", "modelChannel", "availableModels"]} label="系统可用模型(请先在私有配置里配置渠道)" extra="可选项来自已启用渠道中选择的模型，最终开放哪些模型由这里勾选决定">
-                                            <Select mode="multiple" placeholder="请选择系统可用模型" options={channelModels.map((item) => ({ label: item, value: item }))} />
+                                            <Select mode="multiple" showSearch={{ optionFilterProp: ["label", "value"] }} placeholder="请选择系统可用模型" options={channelModels.map((item) => ({ label: publicModelLabel(item), value: item }))} />
                                         </Form.Item>
                                     </Col>
                                     <Col xs={24} md={6}>
                                         <Form.Item name={["public", "modelChannel", "defaultModel"]} label="默认模型">
-                                            <Select showSearch allowClear options={publicModels.map((item) => ({ label: item, value: item }))} />
+                                            <Select showSearch={{ optionFilterProp: ["label", "value"] }} allowClear options={publicModels.map((item) => ({ label: publicModelLabel(item), value: item }))} />
                                         </Form.Item>
                                     </Col>
                                     <Col xs={24} md={6}>
                                         <Form.Item name={["public", "modelChannel", "defaultImageModel"]} label="默认图片模型">
-                                            <Select showSearch allowClear options={publicModels.map((item) => ({ label: item, value: item }))} />
+                                            <Select showSearch={{ optionFilterProp: ["label", "value"] }} allowClear options={publicModels.map((item) => ({ label: publicModelLabel(item), value: item }))} />
                                         </Form.Item>
                                     </Col>
                                     <Col xs={24} md={6}>
                                         <Form.Item name={["public", "modelChannel", "defaultVideoModel"]} label="默认视频模型">
-                                            <Select showSearch allowClear options={publicModels.map((item) => ({ label: item, value: item }))} />
+                                            <Select showSearch={{ optionFilterProp: ["label", "value"] }} allowClear options={publicModels.map((item) => ({ label: publicModelLabel(item), value: item }))} />
                                         </Form.Item>
                                     </Col>
                                     <Col xs={24} md={6}>
                                         <Form.Item name={["public", "modelChannel", "defaultTextModel"]} label="默认文本模型">
-                                            <Select showSearch allowClear options={publicModels.map((item) => ({ label: item, value: item }))} />
+                                            <Select showSearch={{ optionFilterProp: ["label", "value"] }} allowClear options={publicModels.map((item) => ({ label: publicModelLabel(item), value: item }))} />
                                         </Form.Item>
                                     </Col>
                                     <Col span={24}>
@@ -451,7 +455,7 @@ export default function AdminSettingsPage() {
                                             size="small"
                                             dataSource={publicModels.map((model) => ({ model, credits: modelCostCredits(modelCosts, model) }))}
                                             columns={[
-                                                { title: "模型", dataIndex: "model" },
+                                                { title: "模型", dataIndex: "model", render: (value: string) => <span title={value}>{publicModelLabel(value)}</span> },
                                                 {
                                                     title: "每次调用扣除",
                                                     dataIndex: "credits",
@@ -878,7 +882,7 @@ export default function AdminSettingsPage() {
                                 <Form.Item label="渠道可用模型">
                                     <Space.Compact style={{ width: "100%" }}>
                                         <Form.Item name="models" noStyle>
-                                            <Select mode="tags" maxTagCount="responsive" tokenSeparators={[",", "\n"]} options={knownModels.map((model) => ({ label: model, value: model }))} />
+                                            <Select mode="tags" showSearch={{ optionFilterProp: ["label", "value"] }} maxTagCount="responsive" tokenSeparators={[",", "\n"]} options={knownModels.map((model) => ({ label: modelLabel(model, { protocol: channelProtocol, baseUrl: channelBaseUrl }), value: model }))} />
                                         </Form.Item>
                                         <Button onClick={() => openChannelModelSelector()}>选择模型</Button>
                                     </Space.Compact>
@@ -894,6 +898,7 @@ export default function AdminSettingsPage() {
                 </Drawer>
                 {isModelSelectorOpen ? (
                     <ChannelModelSelectorModal
+                        channel={channelForm.getFieldsValue()}
                         models={channelForm.getFieldValue("models") || []}
                         sourceModels={knownModels}
                         onCancel={closeChannelModelSelector}
@@ -934,7 +939,7 @@ export default function AdminSettingsPage() {
                                 onChange: (keys) => setSelectedTestModels(keys.map(String)),
                             }}
                             columns={[
-                                { title: "模型名称", dataIndex: "model", render: (value) => <Typography.Text strong>{value}</Typography.Text> },
+                                { title: "模型名称", dataIndex: "model", render: (value) => <Typography.Text strong title={value}>{modelLabel(value, testChannel)}</Typography.Text> },
                                 {
                                     title: "状态",
                                     dataIndex: "model",

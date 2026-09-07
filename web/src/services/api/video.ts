@@ -6,6 +6,8 @@ import { dataUrlToGeminiInlineData, geminiActionUrl, geminiDirectHeaders, gemini
 import { isGeminiVeo31Model, normalizeGeminiVideoDuration, normalizeGeminiVideoRatio, normalizeGeminiVideoResolution } from "@/lib/gemini-video";
 import { boolConfig, isSeedanceVideoConfig, normalizeSeedanceDuration, normalizeSeedanceRatio } from "@/lib/seedance-video";
 import { isKIEGrokVideoModel, isKIEKlingV3Config, kieKlingOmniVariant } from "./protocols/kling-models";
+import { autoDLBaseUrl, getAutoDLCapabilities } from "@/lib/autodl";
+import { fetchAutoDLWorkflow } from "./autodl";
 import { isAgnesVideoV25Model, isCogVideoX3Model, modelKey, normalizeCogVideoX3Duration, supportsVideoAudioGeneration } from "@/lib/video-model-capabilities";
 import { resolveMediaUrl, uploadMediaFile } from "@/services/file-storage";
 import { imageToDataUrl, resolveImageUrl } from "@/services/image-storage";
@@ -299,6 +301,24 @@ async function create88APIVideoRequestBody(config: AiConfig, model: string, prom
 }
 
 async function createVideoRequestBody(config: AiConfig, model: string, prompt: string, input: Required<VideoReferenceInput>) {
+    if (videoChannelProtocol(config, model) === "autodl") {
+        const capabilities = getAutoDLCapabilities(await fetchAutoDLWorkflow(autoDLBaseUrl(config, model), model));
+        if (!capabilities) throw new VideoRequestError("当前 AutoDL 工作流尚未适配");
+        const { autoDLReferenceURL } = await import("./direct-ai");
+        const [images, videos, audios, firstFrame, lastFrame] = await Promise.all([
+            Promise.all((capabilities.imageMax ? input.references : []).map(autoDLReferenceURL)),
+            Promise.all((capabilities.videoMax ? input.videoReferences : []).map(autoDLReferenceURL)),
+            Promise.all((capabilities.audioMax ? input.audioReferences : []).map(autoDLReferenceURL)),
+            capabilities.firstFrame && input.firstFrame ? autoDLReferenceURL(input.firstFrame) : Promise.resolve(""),
+            capabilities.lastFrame && input.lastFrame ? autoDLReferenceURL(input.lastFrame) : Promise.resolve(""),
+        ]);
+        return {
+            model, prompt, seconds: config.videoSeconds, size: config.size, resolution_name: config.vquality,
+            "input_reference[]": images, "video_reference[]": videos, "audio_reference[]": audios,
+            ...(firstFrame ? { first_frame_url: firstFrame } : {}),
+            ...(lastFrame ? { last_frame_url: lastFrame } : {}),
+        };
+    }
     if (videoChannelProtocol(config, model) === "88api") return create88APIVideoRequestBody(config, model, prompt, input);
     const size = normalizeVideoSize(config.size);
     if (isGeminiVideoModel(model) && isGeminiConfig(config, model)) return createGeminiVeoRequestBody(config, model, prompt, input);
