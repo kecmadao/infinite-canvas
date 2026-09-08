@@ -49,10 +49,10 @@ export function supportsVideoFrameReferences(modelName: string, protocol = "") {
         model === "kling-v2-5-turbo-image-to-video-pro" ||
         model === "minimax-h3-image-to-video" ||
         model === "minimax-h3" ||
-        model.includes("doubao-seedance-2-5") ||
-        model.includes("doubao-seedance-2-0") ||
-        model.includes("doubao-seedance-1-5") ||
-        model.includes("doubao-seedance-1-0") ||
+        model.includes("seedance-2-5") ||
+        model.includes("seedance-2-0") ||
+        model.includes("seedance-1-5") ||
+        model.includes("seedance-1-0") ||
         model === "happyhorse-1-1" ||
         (protocol === "gemini" && (model.startsWith("veo-3-1") || model.startsWith("veo3-1"))) ||
         (model.includes("veo3-1") && model.includes("official")) ||
@@ -81,9 +81,9 @@ export function supportsVideoAudioGeneration(modelName: string, protocol = "") {
         model === "wan-2-6-flash-image-to-video" ||
         model === "wan-2-6-flash-video-to-video" ||
         model.includes("bytedance-seedance-1-5") ||
-        model.includes("doubao-seedance-2-5") ||
-        model.includes("doubao-seedance-2-0") ||
-        model.includes("doubao-seedance-1-5") ||
+        model.includes("seedance-2-5") ||
+        model.includes("seedance-2-0") ||
+        model.includes("seedance-1-5") ||
         (model.includes("veo") && model.includes("official")) ||
         model === "wan2-6" ||
         model === "wan2-6-i2v-flash" ||
