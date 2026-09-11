@@ -303,7 +303,9 @@ async function create88APIVideoRequestBody(config: AiConfig, model: string, prom
         model,
         prompt,
         seconds: normalizeVideoSecondsForModel(model, config.videoSeconds),
-        generate_audio: boolConfig(config.videoGenerateAudio, false),
+        ...(supportsVideoAudioGeneration(model, "88api")
+            ? { generate_audio: boolConfig(config.videoGenerateAudio, false) }
+            : {}),
     };
     if (images.length) body.images = images;
     if (geminiOmni && videos[0]) body.video = videos[0];
@@ -724,7 +726,7 @@ function normalizeVideoSecondsForModel(model: string, value: string) {
     const seconds = Number(normalizeVideoSeconds(value));
     const key = modelKey(model);
     if (key.includes("sora-2")) return closestAllowedSeconds(seconds, [4, 8, 12, 16, 20]);
-    if (key.includes("veo3-1") || key.includes("veo-3-1")) return "8";
+    if (key.includes("veo3-1") || key.includes("veo-3-1")) return closestAllowedSeconds(seconds, [4, 6, 8]);
     if (key.includes("minimax-hailuo-02")) return closestAllowedSeconds(seconds, [5, 10]);
     if (key.includes("minimax-hailuo-2-3")) return closestAllowedSeconds(seconds, [6, 10]);
     if (key.includes("omni-flash-ext")) return closestAllowedSeconds(seconds, [4, 6, 8, 10]);

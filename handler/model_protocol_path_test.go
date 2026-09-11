@@ -36,7 +36,8 @@ func TestModelProtocolProxyPathContract(t *testing.T) {
 		{"apimart query escaped", "apimart", "", "video-model", "/videos/task a?b", "/tasks/task%20a%3Fb?language=zh"},
 		{"grok2api 1.5 before ark URL", " GROK2API ", "https://api.example/api/plan/v3", " GROK-IMAGINE-VIDEO-1.5 ", "/videos", "/videos/generations"},
 		{"ark by model", "openai", "", "doubao-seedance-2", "/videos", "/contents/generations/tasks"},
-		{"ark by URL", "88api", "https://api.example/API/PLAN/V3", "deployment-id", "/videos", "/contents/generations/tasks"},
+		{"ark by URL", "openai", "https://api.example/API/PLAN/V3", "deployment-id", "/videos", "/contents/generations/tasks"},
+		{"88api", "88api", "https://88api.ai/v1", "seedance-2.0-mini-720p", "/videos", "/videos"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

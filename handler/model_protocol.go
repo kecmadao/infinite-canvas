@@ -323,7 +323,7 @@ var builtinAIProtocols = []aiProtocolAdapter{
 	{
 		id: "model:ark-seedance",
 		path: func(channel model.ModelChannel, modelName string, path string) (string, bool) {
-			if isArkSeedanceVideo(channel.BaseURL, modelName) {
+			if !strings.EqualFold(strings.TrimSpace(channel.Protocol), service.ModelChannelProtocol88API) && isArkSeedanceVideo(channel.BaseURL, modelName) {
 				if path == "/videos" {
 					return "/contents/generations/tasks", true
 				}
