@@ -20,6 +20,11 @@ func TestModelProtocolRequestGoldens(t *testing.T) {
 		name, protocol, model, endpoint, body, want, uploads string
 	}{
 		{
+			name: "ark seedance", protocol: "ark", model: "doubao-seedance-2.0",
+			body: `{"prompt":"scene","seconds":15,"size":"16:9","resolution_name":"4k","video_generate_audio":true,"video_watermark":false,"input_reference[]":["https://media.invalid/image.png"],"first_frame_url":"https://media.invalid/first.png","last_frame_url":"https://media.invalid/last.png","video_reference[]":["https://media.invalid/video.mp4"],"audio_reference[]":["https://media.invalid/audio.mp3"]}`,
+			want: `{"model":"doubao-seedance-2.0","content":[{"type":"text","text":"scene"},{"type":"image_url","image_url":{"url":"https://media.invalid/image.png"},"role":"reference_image"},{"type":"image_url","image_url":{"url":"https://media.invalid/first.png"},"role":"first_frame"},{"type":"image_url","image_url":{"url":"https://media.invalid/last.png"},"role":"last_frame"},{"type":"video_url","video_url":{"url":"https://media.invalid/video.mp4"},"role":"reference_video"},{"type":"audio_url","audio_url":{"url":"https://media.invalid/audio.mp3"},"role":"reference_audio"}],"duration":15,"ratio":"16:9","resolution":"4k","generate_audio":true,"watermark":false}`,
+		},
+		{
 			name: "kie wrapper precedence", protocol: "kie", model: "future-model",
 			body: `{"prompt":"outer","duration":9,"seconds":"7s","input":{"prompt":"inner","custom":false,"n":2,"stream":true},"custom":true,"size":"1920x1080","resolution":"1080","quality":"high","output_format":"png","callbackUrl":"https://media.invalid/second","callBackUrl":" https://media.invalid/first "}`,
 			want: `{"model":"future-model","input":{"prompt":"outer","custom":false,"duration":"7"},"callBackUrl":"https://media.invalid/first"}`,
