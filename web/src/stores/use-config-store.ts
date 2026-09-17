@@ -237,7 +237,7 @@ function isVideoModelName(model: string) {
         value.includes("veo") ||
         value.includes("kling") ||
         value.includes("hailuo") ||
-        value.includes("minimax") ||
+        (value.includes("minimax") && value !== "minimax-m3") ||
         value.includes("skyreels") ||
         value.includes("happyhorse") ||
         value.includes("runway") ||
