@@ -21,7 +21,7 @@ import { isWorkflowProtocol, modelChannelApiKeyUrls, modelChannelDefaultBaseUrls
 import { startTokenDanceOAuth } from "@/lib/tokendance-oauth";
 import type { WorkflowChannelData, WorkflowEntry } from "@/lib/workflow-channel";
 import { listWorkflowChannels, readWorkflowChannel, replaceWorkflowChannels, saveWorkflowChannel } from "@/services/workflow-channel-storage";
-import { filterChannelModelsByCapability, normalizeLocalChannels, useConfigStore, useEffectiveConfig, type AiConfig, type LocalModelChannel, type ModelCapability } from "@/stores/use-config-store";
+import { filterChannelModelsByCapability, normalizeLocalChannels, useConfigStore, useEffectiveConfig, type AiConfig, type LocalModelChannel, type ModelCapabilities, type ModelCapability } from "@/stores/use-config-store";
 import { useUserStore } from "@/stores/use-user-store";
 
 type ModelGroup = {
@@ -77,8 +77,9 @@ export function AppConfigModal() {
     const modelConfig = effectiveMode === "remote" ? effectiveConfig : localModelConfig;
     const canUseUserStorageProvider = allowUserStorageProvider;
     const glmTts = isGlmTtsModel(config.audioModel);
-    const grokTts = isGrok2APITtsConfig({ ...modelConfig, model: config.audioModel, audioModel: config.audioModel }, config.audioModel);
-    const geminiTts = isGeminiTtsModel(config.audioModel) && isGeminiConfig({ ...modelConfig, model: config.audioModel, audioModel: config.audioModel }, config.audioModel);
+    const audioConfig = { ...modelConfig, model: config.audioModel, audioModel: config.audioModel, activeChannelId: modelConfig.audioChannelId || modelConfig.activeChannelId };
+    const grokTts = isGrok2APITtsConfig(audioConfig, config.audioModel);
+    const geminiTts = isGeminiTtsModel(config.audioModel) && isGeminiConfig(audioConfig, config.audioModel);
     const modelSelectChannel = normalizeLocalChannels(config).find((channel) => channel.id === modelSelectChannelId);
 
     useEffect(() => {
@@ -260,10 +261,10 @@ export function AppConfigModal() {
         updateConfig("videoModel", videoModel);
         updateConfig("textModel", textModel);
         updateConfig("audioModel", audioModel);
-        updateConfig("imageChannelId", channelIdForLocalModel(modelChannels, imageModel, config.imageChannelId));
-        updateConfig("videoChannelId", channelIdForLocalModel(modelChannels, videoModel, config.videoChannelId));
-        updateConfig("textChannelId", channelIdForLocalModel(modelChannels, textModel, config.textChannelId));
-        updateConfig("audioChannelId", channelIdForLocalModel(modelChannels, audioModel, config.audioChannelId));
+        updateConfig("imageChannelId", channelIdForLocalModel(modelChannels, imageModel, config.imageChannelId, "image"));
+        updateConfig("videoChannelId", channelIdForLocalModel(modelChannels, videoModel, config.videoChannelId, "video"));
+        updateConfig("textChannelId", channelIdForLocalModel(modelChannels, textModel, config.textChannelId, "text"));
+        updateConfig("audioChannelId", channelIdForLocalModel(modelChannels, audioModel, config.audioChannelId, "audio"));
         updateConfig("baseUrl", modelChannels[0]?.baseUrl || config.baseUrl);
         updateConfig("apiKey", modelChannels[0]?.apiKey || config.apiKey);
     };
@@ -289,9 +290,9 @@ export function AppConfigModal() {
 
     const closeLocalModelSelector = () => setModelSelectChannelId("");
 
-    const confirmLocalModelSelector = (models: string[]) => {
+    const confirmLocalModelSelector = (models: string[], modelCapabilities: ModelCapabilities) => {
         if (!modelSelectChannelId) return;
-        patchLocalChannel(modelSelectChannelId, { models });
+        patchLocalChannel(modelSelectChannelId, { models, modelCapabilities });
         closeLocalModelSelector();
     };
 
@@ -524,7 +525,7 @@ export function AppConfigModal() {
                             </Form.Item>
                         ) : isMimoTtsModel(config.audioModel) ? null : (
                             <Form.Item label="默认音频声音" className="mb-4">
-                                {grokTts ? <GrokTtsVoiceSelect config={modelConfig} model={config.audioModel} value={config.grokTtsVoice} enabled={isConfigOpen} onChange={(value) => updateConfig("grokTtsVoice", value)} /> : <Select value={glmTts ? normalizeGlmTtsVoice(config.glmTtsVoice) : config.audioVoice} options={glmTts ? glmTtsVoiceOptions : audioVoiceOptions} onChange={(value) => updateConfig(glmTts ? "glmTtsVoice" : "audioVoice", value)} />}
+                                {grokTts ? <GrokTtsVoiceSelect config={audioConfig} model={config.audioModel} value={config.grokTtsVoice} enabled={isConfigOpen} onChange={(value) => updateConfig("grokTtsVoice", value)} /> : <Select value={glmTts ? normalizeGlmTtsVoice(config.glmTtsVoice) : config.audioVoice} options={glmTts ? glmTtsVoiceOptions : audioVoiceOptions} onChange={(value) => updateConfig(glmTts ? "glmTtsVoice" : "audioVoice", value)} />}
                             </Form.Item>
                         )}
                         {grokTts ? (
@@ -679,10 +680,9 @@ function configForLocalChannel(config: AiConfig, channel: LocalModelChannel): Ai
     };
 }
 
-function channelIdForLocalModel(channels: LocalModelChannel[], model: string, currentId: string) {
-    if (!channels.length) return "";
-    if (channels.some((channel) => channel.id === currentId && (!model || channel.models.includes(model)))) return currentId;
-    return channels.find((channel) => model && channel.models.includes(model))?.id || channels[0].id;
+function channelIdForLocalModel(channels: LocalModelChannel[], model: string, currentId: string, capability: ModelCapability) {
+    const matching = channels.filter((channel) => !model || filterChannelModelsByCapability([channel], capability).includes(model));
+    return matching.find((channel) => channel.id === currentId)?.id || matching[0]?.id || "";
 }
 
 function normalizeImageCount(value: string) {

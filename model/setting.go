@@ -30,6 +30,8 @@ type ModelChannel struct {
 	ComfyURL     string          `json:"comfyUrl,omitempty"`
 	WorkflowDir  string          `json:"workflowDir,omitempty"`
 	Workflows    []WorkflowEntry `json:"workflows,omitempty"`
+
+	ModelCapabilities map[string]string `json:"modelCapabilities,omitempty"`
 }
 
 type WorkflowFieldMapping struct {
@@ -123,6 +125,8 @@ type PublicModelChannelInfo struct {
 	Enabled   bool              `json:"enabled"`
 	Remark    string            `json:"remark"`
 	Workflows []WorkflowSummary `json:"workflows,omitempty"`
+
+	ModelCapabilities map[string]string `json:"modelCapabilities,omitempty"`
 }
 
 // PublicSetting 公开配置。

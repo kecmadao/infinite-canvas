@@ -1141,6 +1141,12 @@ func publicChannelInfos(channels []model.ModelChannel, availableModels, availabl
 				continue
 			}
 		}
+		modelCapabilities := map[string]string{}
+		for _, name := range models {
+			if capability, ok := channel.ModelCapabilities[name]; ok {
+				modelCapabilities[name] = capability
+			}
+		}
 		result = append(result, model.PublicModelChannelInfo{
 			ID:       channel.ID,
 			Protocol: channel.Protocol,
@@ -1151,6 +1157,8 @@ func publicChannelInfos(channels []model.ModelChannel, availableModels, availabl
 			Timeout:  channel.Timeout,
 			Enabled:  channel.Enabled,
 			Remark:   channel.Remark,
+
+			ModelCapabilities: modelCapabilities,
 		})
 	}
 	return result

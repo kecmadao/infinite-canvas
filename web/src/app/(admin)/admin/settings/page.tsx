@@ -16,6 +16,7 @@ import { fetchAdminSettings, fetchChannelModels, measureAdminStorageProvider, sa
 import { clearStorageConfigCache as clearMediaStorageConfigCache } from "@/services/file-storage";
 import { clearStorageConfigCache as clearImageStorageConfigCache } from "@/services/image-storage";
 import { useUserStore } from "@/stores/use-user-store";
+import type { ModelCapabilities } from "@/stores/use-config-store";
 
 const CodeMirror = dynamic(() => import("@uiw/react-codemirror"), { ssr: false });
 const WorkflowChannelPane = dynamic(() => import("@/components/workflow/workflow-channel-pane").then((module) => module.WorkflowChannelPane), { ssr: false });
@@ -246,7 +247,7 @@ export default function AdminSettingsPage() {
 
     const saveChannel = async () => {
         const values = await channelForm.validateFields();
-        const channel = normalizeChannel(isWorkflowProtocol(values.protocol) ? { ...workflowChannelDraft, ...channelForm.getFieldsValue(true), ...values } : values);
+        const channel = normalizeChannel(isWorkflowProtocol(values.protocol) ? { ...workflowChannelDraft, ...channelForm.getFieldsValue(true), ...values } : { ...values, modelCapabilities: channelForm.getFieldValue("modelCapabilities") });
         if (channel.protocol === "runninghub" && (!channel.baseUrl.trim() || (!channel.apiKey.trim() && editingChannelIndex === null))) {
             message.error("请填写 RunningHub Base URL 和积分 API Key");
             return;
@@ -277,8 +278,8 @@ export default function AdminSettingsPage() {
 
     const closeChannelModelSelector = () => setIsModelSelectorOpen(false);
 
-    const confirmChannelModelSelector = (models: string[]) => {
-        channelForm.setFieldValue("models", models);
+    const confirmChannelModelSelector = (models: string[], modelCapabilities: ModelCapabilities) => {
+        channelForm.setFieldsValue({ models, modelCapabilities });
         rememberModels(models);
         closeChannelModelSelector();
     };
@@ -1009,7 +1010,7 @@ export default function AdminSettingsPage() {
                 </Drawer>
                 {isModelSelectorOpen ? (
                     <ChannelModelSelectorModal
-                        channel={channelForm.getFieldsValue()}
+                        channel={channelForm.getFieldsValue(true)}
                         models={channelForm.getFieldValue("models") || []}
                         sourceModels={knownModels}
                         onCancel={closeChannelModelSelector}
@@ -1204,6 +1205,7 @@ function normalizeChannel(item: Partial<AdminModelChannel> = {}): AdminModelChan
         baseUrl: item.baseUrl || "",
         apiKey: item.apiKey || "",
         models: item.models || [],
+        modelCapabilities: item.modelCapabilities || {},
         uploadApiKey: item.uploadApiKey || "",
         bridgeId: item.bridgeId || "",
         comfyUrl: item.comfyUrl || "",
