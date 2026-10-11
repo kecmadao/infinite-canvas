@@ -3,6 +3,7 @@ package repository
 import (
 	"github.com/tigerowo/infinite-canvas/model"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func SaveFailedTranslatedVideoTask(task model.VideoTask, refundLog model.CreditLog) error {
@@ -35,7 +36,24 @@ func SaveVideoTask(task model.VideoTask) (model.VideoTask, error) {
 	if err != nil {
 		return task, err
 	}
-	return task, db.Save(&task).Error
+	if err := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&task).Error; err != nil {
+		return task, err
+	}
+	update := db.Model(&model.VideoTask{}).Where("user_id = ? AND id = ? AND status <> ?", task.UserID, task.ID, "cancelled").Select("*").Updates(&task)
+	if update.Error == nil && update.RowsAffected == 0 {
+		update = db.First(&task, "user_id = ? AND id = ?", task.UserID, task.ID)
+	}
+	return task, update.Error
+}
+
+func UpdateVideoTask(task model.VideoTask) error {
+	db, err := DB()
+	if err != nil {
+		return err
+	}
+	return db.Model(&model.VideoTask{}).
+		Where("id = ? AND status <> ?", task.ID, "cancelled").
+		Select("*").Updates(&task).Error
 }
 
 func GetVideoTask(id string) (model.VideoTask, bool, error) {

@@ -389,7 +389,6 @@ var builtinAIProtocols = []aiProtocolAdapter{
 			return baseURL + "/agnesapi?" + values.Encode(), true
 		},
 	},
-	{id: service.ModelChannelProtocol88API},
 	{
 		id:   service.ModelChannelProtocolOpenAI,
 		path: func(_ model.ModelChannel, _ string, path string) (string, bool) { return path, true },

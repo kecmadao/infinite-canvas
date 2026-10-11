@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"strings"
@@ -68,7 +69,7 @@ type VideoTaskPollUpdate struct {
 	StatusCode                   int
 }
 
-type VideoTaskPollFunc func(model.VideoTask) (VideoTaskPollUpdate, error)
+type VideoTaskPollFunc func(context.Context, model.VideoTask) (VideoTaskPollUpdate, error)
 
 func CreateVideoTask(input VideoTaskCreateInput) (model.VideoTask, error) {
 	current := now()
@@ -224,6 +225,7 @@ func runVideoTaskPoller() {
 	inFlight := sync.Map{}
 	lastCleanupAt := time.Time{}
 	lastImageCleanupAt := time.Time{}
+	lastAudioCleanupAt := time.Time{}
 	workflowCursorCreatedAt, workflowCursorID := "", ""
 	for range videoTaskPollWake {
 		for {
@@ -263,8 +265,12 @@ func runVideoTaskPoller() {
 			if imageErr != nil {
 				log.Printf("check active canvas image tasks failed err=%v", imageErr)
 			}
-			if len(tasks) == 0 && len(workflowTasks) == 0 && !hasComfyTasks && !hasComfyCleanup && !hasImageTasks {
-				if workflowErr != nil || comfyErr != nil || cleanupErr != nil || imageErr != nil {
+			hasAudioTasks, audioErr := repository.HasActiveCanvasAudioTasks()
+			if audioErr != nil {
+				log.Printf("check active canvas audio tasks failed err=%v", audioErr)
+			}
+			if len(tasks) == 0 && len(workflowTasks) == 0 && !hasComfyTasks && !hasComfyCleanup && !hasImageTasks && !hasAudioTasks {
+				if workflowErr != nil || comfyErr != nil || cleanupErr != nil || imageErr != nil || audioErr != nil {
 					waitForNextVideoTaskPoll()
 					continue
 				}
@@ -290,6 +296,12 @@ func runVideoTaskPoller() {
 				}
 				lastImageCleanupAt = current
 			}
+			if hasAudioTasks && (lastAudioCleanupAt.IsZero() || current.Sub(lastAudioCleanupAt) >= videoTaskCleanupInterval) {
+				if err := repository.DeleteFinishedCanvasAudioTasksBefore(videoTaskTime(current.Add(-videoTaskFinishedRetention))); err != nil {
+					log.Printf("cleanup finished canvas audio tasks failed err=%v", err)
+				}
+				lastAudioCleanupAt = current
+			}
 			for _, task := range tasks {
 				if _, loaded := inFlight.LoadOrStore(task.ID, true); loaded {
 					continue
@@ -300,7 +312,15 @@ func runVideoTaskPoller() {
 					if poll == nil {
 						return
 					}
-					update, err := poll(task)
+					ctx, cleanup, err := CanvasTaskContext("video", task.UserID, task.ID)
+					if err != nil {
+						return
+					}
+					defer cleanup()
+					update, err := poll(ctx, task)
+					if ctx.Err() != nil {
+						return
+					}
 					if err != nil {
 						update = VideoTaskPollUpdate{Status: task.Status, ErrorDetail: err.Error()}
 					}
@@ -316,7 +336,13 @@ func runVideoTaskPoller() {
 				}
 				go func(task repository.RunningHubWorkflowTask) {
 					defer inFlight.Delete("workflow:" + task.ID)
-					if err := pollRunningHubWorkflowTask(task); err != nil {
+					kind := strings.SplitN(task.ID, "-", 3)[1]
+					ctx, cleanup, err := CanvasTaskContext(kind, task.UserID, task.ID)
+					if err != nil {
+						return
+					}
+					defer cleanup()
+					if err := pollRunningHubWorkflowTask(ctx, task); err != nil && ctx.Err() == nil {
 						log.Printf("poll RunningHub workflow task failed id=%s err=%v", task.ID, err)
 					}
 				}(task)
@@ -381,6 +407,9 @@ func UpdateVideoTaskFromPoll(task model.VideoTask, update VideoTaskPollUpdate) e
 	if task.ParameterTranslationSnapshot != "" && task.Status == "failed" {
 		extra, _ := json.Marshal(map[string]string{"model": task.Model, "path": "/videos"})
 		return repository.SaveFailedTranslatedVideoTask(task, model.CreditLog{ID: newID("credit"), UserID: task.UserID, Type: model.CreditLogTypeAIRefund, Amount: task.Credits, Remark: "模型调用失败返还 " + task.Model, Extra: string(extra), CreatedAt: current})
+	}
+	if task.Source == "canvas" || task.Source == "video-workbench" {
+		return repository.UpdateVideoTask(task)
 	}
 	_, err := repository.SaveVideoTask(task)
 	return err

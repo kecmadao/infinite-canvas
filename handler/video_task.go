@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,6 +67,21 @@ func proxyAIVideoTaskRequest(w http.ResponseWriter, r *http.Request) {
 		Fail(w, "未登录或权限不足")
 		return
 	}
+	taskContext := context.Background()
+	if id := readClientVideoTaskID(r); id != "" {
+		var cleanup func()
+		taskContext, cleanup, err = service.CanvasTaskContext("video", user.ID, id)
+		if err != nil {
+			FailError(w, err)
+			return
+		}
+		defer cleanup()
+		requestContext, cancel := context.WithCancel(r.Context())
+		stopCancel := context.AfterFunc(taskContext, cancel)
+		defer stopCancel()
+		defer cancel()
+		r = r.WithContext(requestContext)
+	}
 	channel, userChannelID, err := selectAIRequestChannel(user, modelName, r.Header.Get("X-Model-Channel-ID"), r.Header.Get(userModelChannelHeader), true)
 	if err != nil {
 		log.Printf("AI video select channel failed: model=%s err=%v", modelName, err)
@@ -104,7 +120,7 @@ func proxyAIVideoTaskRequest(w http.ResponseWriter, r *http.Request) {
 		Fail(w, "AI 接口请求失败")
 		return
 	}
-	request, err := http.NewRequest(http.MethodPost, service.BuildModelChannelURL(channel, upstreamPath), bytes.NewReader(body))
+	request, err := http.NewRequestWithContext(taskContext, http.MethodPost, service.BuildModelChannelURL(channel, upstreamPath), bytes.NewReader(body))
 	if err != nil {
 		log.Printf("AI video build request failed: url=%s err=%v", service.BuildModelChannelURL(channel, upstreamPath), err)
 		Fail(w, "AI 接口请求失败")
@@ -132,6 +148,10 @@ func proxyAIVideoTaskRequest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	payload, status, err := doAIRequest(request, channel)
+	if taskContext.Err() != nil {
+		Fail(w, "任务已停止")
+		return
+	}
 	if err != nil {
 		if credits > 0 {
 			refundVideoCredits(user.ID, modelName, credits, upstreamPath)
@@ -283,7 +303,7 @@ func serveGeminiVideoTaskContent(w http.ResponseWriter, r *http.Request, id stri
 	return true
 }
 
-func pollVideoTaskFromUpstream(task model.VideoTask) (service.VideoTaskPollUpdate, error) {
+func pollVideoTaskFromUpstream(ctx context.Context, task model.VideoTask) (service.VideoTaskPollUpdate, error) {
 	var channel model.ModelChannel
 	var err error
 	if strings.TrimSpace(task.UserChannelID) != "" {
@@ -295,7 +315,7 @@ func pollVideoTaskFromUpstream(task model.VideoTask) (service.VideoTaskPollUpdat
 		return service.VideoTaskPollUpdate{}, err
 	}
 	if task.ParameterTranslationSnapshot != "" {
-		update, err := service.PollParameterTranslationVideo(task, channel)
+		update, err := service.PollParameterTranslationVideo(ctx, task, channel)
 		if err != nil || service.IsCompletedVideoTaskStatus(update.Status) || service.IsFailedVideoTaskStatus(update.Status) {
 			startedAt, _ := time.Parse(time.RFC3339Nano, task.CreatedAt)
 			message := firstNonEmpty(update.Error, update.ErrorDetail)
@@ -315,7 +335,7 @@ func pollVideoTaskFromUpstream(task model.VideoTask) (service.VideoTaskPollUpdat
 	}
 	endpoint := "/videos/" + pollID
 	upstreamPath := resolveAIProxyPath(channel, task.Model, endpoint)
-	request, err := http.NewRequest(http.MethodGet, resolveAIProxyURL(channel, task.Model, upstreamPath), nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, resolveAIProxyURL(channel, task.Model, upstreamPath), nil)
 	if err != nil {
 		return service.VideoTaskPollUpdate{}, err
 	}
