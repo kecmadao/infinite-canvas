@@ -72,10 +72,6 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
         setPrompt(sourcePrompt);
     }, [node.id, sourcePrompt]);
 
-    useEffect(() => {
-        if (node.metadata?.status === "stopped") setPrompt("");
-    }, [node.id, node.metadata?.status]);
-
     const updatePrompt = (value: string) => {
         setPrompt(value);
         onPromptChange(node.id, value);
@@ -87,7 +83,6 @@ export function CanvasNodePromptPanel({ node, isRunning, onPromptChange, onConfi
         const text = prompt.trim();
         if (!canSubmit || generating || isStopping) return;
         onGenerate(node.id, mode, text);
-        if (!isPanorama) setPrompt("");
     };
 
     return (

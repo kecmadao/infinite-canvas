@@ -1,5 +1,5 @@
 import axios from "axios";
-import { executeParameterTranslation, findParameterTranslation, translationBody, translationHeaders, type TranslationInput } from "./channel-parameter-translation";
+import { executeParameterTranslation, findParameterTranslation, normalizeTranslationAspectRatio, translationBody, translationHeaders, type TranslationInput } from "./channel-parameter-translation";
 
 import { isMiniMaxChannel, miniMaxModels } from "@/lib/minimax-video";
 import { dataUrlToFile } from "@/lib/image-utils";
@@ -987,7 +987,7 @@ async function imageTranslationInput(config: AiConfig, prompt: string, reference
             model: config.model,
             prompt: withPromptGuard(config, withSystemPrompt(config, prompt)),
             size: params.size,
-            aspectRatio: config.size,
+            aspectRatio: normalizeTranslationAspectRatio(config.size),
             quality: config.quality,
             count: params.n,
             images: await Promise.all(references.map(async (ref) => publicHttpUrl(ref.url) || publicHttpUrl(ref.dataUrl) || imageToDataUrl(ref))),

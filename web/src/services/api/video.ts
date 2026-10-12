@@ -1,7 +1,7 @@
 import axios from "axios";
 import { nanoid } from "nanoid";
 import { WorkflowRequestError } from "./workflow-generation";
-import { BrowserParameterTranslation, findParameterTranslation, translationBody, translationHeaders, translationMediaAddress, type MatchedTranslation, type TranslationInput, type TranslationResult } from "./channel-parameter-translation";
+import { BrowserParameterTranslation, findParameterTranslation, normalizeTranslationAspectRatio, translationBody, translationHeaders, translationMediaAddress, type MatchedTranslation, type TranslationInput, type TranslationResult } from "./channel-parameter-translation";
 
 import { dataUrlToFile, readFileAsDataUrl } from "@/lib/image-utils";
 import { isMiniMaxH3Config, normalizeMiniMaxH3Duration, normalizeMiniMaxH3Ratio, normalizeMiniMaxH3Resolution } from "@/lib/minimax-video";
@@ -160,7 +160,7 @@ async function createTranslatedVideoTask(config: AiConfig, match: MatchedTransla
             model: config.model,
             prompt,
             size: config.size,
-            aspectRatio: config.size,
+            aspectRatio: normalizeTranslationAspectRatio(config.size),
             resolution: config.vquality,
             seconds: Number(config.videoSeconds),
             mode: config.videoMode,
