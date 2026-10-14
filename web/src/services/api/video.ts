@@ -258,7 +258,7 @@ export async function pollCreatedVideoGenerationTask(config: AiConfig, task: Vid
         if (initialDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, initialDelayMs));
         for (; ;) {
             const polled: VideoResponse = await pollOnce();
-            const video = polled.parameter_translation ? polled : await cacheProtectedVideo(config, model, await cacheProtectedGeminiVideo(config, model, polled));
+            const video = polled.parameter_translation ? await syncGeneratedVideo(polled, config, true) : await cacheProtectedVideo(config, model, await cacheProtectedGeminiVideo(config, model, polled));
             onPoll?.(video);
             if (isFailedVideoStatus(video.status)) throw new VideoRequestError(video.error?.message || "视频生成失败", video);
             if (typeof video.progress === "number") onProgress?.(video.progress, video);
@@ -301,12 +301,14 @@ function videoSyncKey(config: AiConfig, task: VideoResponse) {
 async function syncGeneratedVideo(task: VideoResponse, config: AiConfig, contentResolved = false): Promise<VideoResponse> {
     const url = task.video_url || task.url || "";
     if (task.storageKey || isFailedVideoStatus(task.status) || (!isCompletedVideoStatus(task.status) && !url)) return task;
-    const media = await autoSyncToCloud(`video:${videoSyncKey(config, task)}`, async () => {
-        const model = config.model || config.videoModel;
-        const cached = contentResolved ? task : await cacheProtectedGeminiVideo(config, model, await cacheProtectedVideo(config, model, task));
-        if (cached.storageKey) return { url: cached.video_url || cached.url || url, storageKey: cached.storageKey };
-        return url ? uploadRemoteMediaToServer(url, "video") : null;
-    });
+    const media = task.parameter_translation && url.startsWith("data:video/")
+        ? await uploadMediaFile(url, "generated-video", `video:${videoSyncKey(config, task)}`)
+        : await autoSyncToCloud(`video:${videoSyncKey(config, task)}`, async () => {
+            const model = config.model || config.videoModel;
+            const cached = contentResolved ? task : await cacheProtectedGeminiVideo(config, model, await cacheProtectedVideo(config, model, task));
+            if (cached.storageKey) return { url: cached.video_url || cached.url || url, storageKey: cached.storageKey };
+            return url ? uploadRemoteMediaToServer(url, "video") : null;
+        });
     return media ? { ...task, url: media.url, video_url: media.url, storageKey: media.storageKey } : task;
 }
 
