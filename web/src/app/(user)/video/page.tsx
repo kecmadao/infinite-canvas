@@ -709,7 +709,7 @@ export default function VideoPage() {
                 const referenceImages = [snapshot.firstFrame, ...snapshot.references, snapshot.lastFrame].filter((item): item is ReferenceImage => Boolean(item));
                 const [workflowImages, workflowVideos, workflowAudios] = await Promise.all([
                     Promise.all(referenceImages.map((item) => workflowMediaSource(item.dataUrl))),
-                    Promise.all(snapshot.videoReferences.map((item) => workflowMediaSource(item.url))),
+                    Promise.all(snapshot.videoReferences.map((item) => workflowMediaSource(item.url, snapshot.workflowRef!))),
                     Promise.all(snapshot.audioReferences.map((item) => workflowMediaSource(item.url))),
                 ]);
                 if (!active()) throw new Error("登录状态已变化");

@@ -5918,7 +5918,7 @@ async function submitCanvasWorkflowTask(ref: WorkflowRef, config: AiConfig, mode
     if (!token) throw new Error("工作流生成需要先登录");
     const [referenceImages, referenceVideos, referenceAudios] = await Promise.all([
         Promise.all(images.map((image) => workflowMediaSource(image.dataUrl))),
-        Promise.all(videos.map((video) => workflowMediaSource(video.url))),
+        Promise.all(videos.map((video) => workflowMediaSource(video.url, ref))),
         Promise.all(audios.map((audio) => workflowMediaSource(audio.url))),
     ]);
     if (useUserStore.getState().token !== token) throw new Error("登录状态已变化");
