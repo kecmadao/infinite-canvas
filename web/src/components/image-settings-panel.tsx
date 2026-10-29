@@ -153,7 +153,10 @@ export function ImageSettingsTheme({ theme, children }: { theme: CanvasTheme; ch
         <ConfigProvider
             theme={{
                 token: { colorBgContainer: theme.toolbar.panel, colorBgElevated: theme.toolbar.panel, colorBorder: theme.node.stroke, colorPrimary: theme.node.activeStroke, colorText: theme.node.text, colorTextLightSolid: theme.node.panel },
-                components: { Button: { defaultBg: theme.toolbar.panel, defaultBorderColor: theme.node.stroke, defaultColor: theme.node.text } },
+                components: {
+                    Button: { defaultBg: theme.toolbar.panel, defaultBorderColor: theme.node.stroke, defaultColor: theme.node.text },
+                    Slider: { railBg: theme.node.stroke, railHoverBg: theme.node.stroke, trackBg: theme.node.activeStroke, trackHoverBg: theme.node.activeStroke, handleColor: theme.node.text, handleActiveColor: theme.node.text },
+                },
             }}
         >
             {children}
