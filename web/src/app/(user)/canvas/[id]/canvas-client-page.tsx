@@ -158,6 +158,7 @@ function formatPreviewTime(value: number) {
 function createCanvasNode(type: CanvasNodeType, position: Position, metadata?: CanvasNodeMetadata, nodeId?: string): CanvasNodeData {
     const spec = getNodeSpec(type);
     const defaults = type === CanvasNodeType.Image || type === CanvasNodeType.Video ? useCanvasUiStore.getState().generationDefaults[type] : undefined;
+    const initialSize = defaults?.size || (type === CanvasNodeType.Image ? defaultConfig.size : undefined);
     const id = nodeId || `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
     const node: CanvasNodeData = {
@@ -172,7 +173,7 @@ function createCanvasNode(type: CanvasNodeType, position: Position, metadata?: C
         height: spec.height,
         metadata: { ...spec.metadata, ...defaults, ...metadata },
     };
-    return defaults?.size && metadata?.size === undefined ? applyNodeConfigPatch(node, { size: defaults.size }) : node;
+    return initialSize && metadata?.size === undefined ? applyNodeConfigPatch(node, { size: initialSize }) : node;
 }
 
 export default function CanvasPage() {

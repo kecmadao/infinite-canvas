@@ -8,9 +8,9 @@ import type { AiConfig } from "@/stores/use-config-store";
 
 const qualityOptions = [
     { value: "auto", label: "自动" },
-    { value: "high", label: "高" },
-    { value: "medium", label: "中" },
-    { value: "low", label: "低" },
+    { value: "high", label: "高 · 4K" },
+    { value: "medium", label: "中 · 2K" },
+    { value: "low", label: "低 · 1K" },
 ];
 const DIMENSION_STEP = 16;
 
@@ -165,7 +165,7 @@ export function ImageSettingsTheme({ theme, children }: { theme: CanvasTheme; ch
 }
 
 export function imageQualityLabel(value: string) {
-    return ({ auto: "自动", high: "高", medium: "中", low: "低" } as Record<string, string>)[value] || value;
+    return ({ auto: "自动", high: "高 · 4K", medium: "中 · 2K", low: "低 · 1K" } as Record<string, string>)[value] || value;
 }
 
 export function imageSizeLabel(size: string) {

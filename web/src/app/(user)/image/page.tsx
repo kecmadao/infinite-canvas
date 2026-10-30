@@ -1427,9 +1427,9 @@ export default function ImagePage() {
 
 const quickQualityOptions = [
     { value: "auto", label: "自动" },
-    { value: "high", label: "高" },
-    { value: "medium", label: "中" },
-    { value: "low", label: "低" },
+    { value: "high", label: "高 · 4K" },
+    { value: "medium", label: "中 · 2K" },
+    { value: "low", label: "低 · 1K" },
 ];
 
 function WorkbenchPanel({
