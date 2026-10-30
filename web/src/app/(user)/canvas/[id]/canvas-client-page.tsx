@@ -43,6 +43,7 @@ import { isAutoDLConfig } from "@/lib/autodl";
 import { isGlmTtsModel } from "@/lib/audio-generation";
 import { isGrok2APITtsConfig } from "@/lib/grok-tts";
 import { isGeminiConfig, isGeminiTtsModel } from "@/lib/gemini";
+import { isMiniMaxTtsConfig } from "@/lib/minimax-tts";
 import { isKIESeedreamLayerDecompositionModel } from "@/lib/kie-models";
 import { IMAGE_MASK_EDIT_PROMPT_PREFIX } from "@/lib/image-reference-prompt";
 import { NODE_DEFAULT_SIZE, getNodeSpec } from "../constants";
@@ -3819,6 +3820,7 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     const audioModel = agentEffectiveConfig.audioModel;
                     const audioConfig = { ...agentEffectiveConfig, model: audioModel, activeChannelId: agentEffectiveConfig.audioChannelId || agentEffectiveConfig.activeChannelId };
                     const grokTts = isGrok2APITtsConfig(audioConfig, audioModel);
+                    const miniMaxTts = isMiniMaxTtsConfig(audioConfig, audioModel);
                     return {
                         ok: true,
                         models: {
@@ -3837,10 +3839,10 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                         videoGenerateAudio: agentEffectiveConfig.videoGenerateAudio,
                         videoSupportsAudio: supportsVideoAudioGeneration(videoModel),
                         videoDuration: canvasAgentVideoDurationHint(videoModel),
-                        audioVoice: isGeminiTtsModel(audioModel) && isGeminiConfig(audioConfig, audioModel) ? agentEffectiveConfig.geminiTtsVoice : isGlmTtsModel(audioModel) ? agentEffectiveConfig.glmTtsVoice : grokTts ? agentEffectiveConfig.grokTtsVoice : agentEffectiveConfig.audioVoice,
+                        audioVoice: isGeminiTtsModel(audioModel) && isGeminiConfig(audioConfig, audioModel) ? agentEffectiveConfig.geminiTtsVoice : miniMaxTts ? agentEffectiveConfig.miniMaxTtsVoice : isGlmTtsModel(audioModel) ? agentEffectiveConfig.glmTtsVoice : grokTts ? agentEffectiveConfig.grokTtsVoice : agentEffectiveConfig.audioVoice,
                         audioLanguage: grokTts ? agentEffectiveConfig.grokTtsLanguage : "",
-                        audioFormat: isGlmTtsModel(audioModel) ? agentEffectiveConfig.glmTtsFormat : grokTts ? agentEffectiveConfig.grokTtsFormat : agentEffectiveConfig.audioFormat,
-                        audioSpeed: isGlmTtsModel(audioModel) ? agentEffectiveConfig.glmTtsSpeed : grokTts ? agentEffectiveConfig.grokTtsSpeed : agentEffectiveConfig.audioSpeed,
+                        audioFormat: miniMaxTts ? agentEffectiveConfig.miniMaxTtsFormat : isGlmTtsModel(audioModel) ? agentEffectiveConfig.glmTtsFormat : grokTts ? agentEffectiveConfig.grokTtsFormat : agentEffectiveConfig.audioFormat,
+                        audioSpeed: miniMaxTts ? agentEffectiveConfig.miniMaxTtsSpeed : isGlmTtsModel(audioModel) ? agentEffectiveConfig.glmTtsSpeed : grokTts ? agentEffectiveConfig.grokTtsSpeed : agentEffectiveConfig.audioSpeed,
                     };
                 }
 
@@ -4069,6 +4071,10 @@ function InfiniteCanvasPage({ projectId }: { projectId: string }) {
                     if (mode === "audio") {
                         if (isGeminiTtsModel(generationConfig.model) && isGeminiConfig(generationConfig, generationConfig.model)) {
                             metadata.geminiTtsVoice = stringValue("voice") || generationConfig.geminiTtsVoice;
+                        } else if (isMiniMaxTtsConfig(generationConfig, generationConfig.model)) {
+                            metadata.miniMaxTtsVoice = stringValue("voice") || generationConfig.miniMaxTtsVoice;
+                            metadata.miniMaxTtsFormat = generationConfig.miniMaxTtsFormat;
+                            metadata.miniMaxTtsSpeed = generationConfig.miniMaxTtsSpeed;
                         } else if (isGlmTtsModel(generationConfig.model)) {
                             metadata.glmTtsVoice = stringValue("voice") || generationConfig.glmTtsVoice;
                             metadata.glmTtsFormat = generationConfig.glmTtsFormat;
@@ -5509,6 +5515,11 @@ function buildAudioGenerationMetadata(config: AiConfig, sourceMetadata?: CanvasN
         mimoTtsFormat: config.mimoTtsFormat,
         mimoVoiceDesignPrompt: config.mimoVoiceDesignPrompt,
         geminiTtsVoice: config.geminiTtsVoice,
+        ...(isMiniMaxTtsConfig(config, config.model) ? {
+            miniMaxTtsVoice: config.miniMaxTtsVoice,
+            miniMaxTtsFormat: config.miniMaxTtsFormat,
+            miniMaxTtsSpeed: config.miniMaxTtsSpeed,
+        } : {}),
         mimoVoiceCloneAudioNodeId: sourceMetadata?.mimoVoiceCloneAudioNodeId,
         referenceAudioNodeId: sourceMetadata?.referenceAudioNodeId,
     };
@@ -6135,6 +6146,9 @@ function buildGenerationConfig(config: AiConfig, node: CanvasNodeData | undefine
         mimoTtsFormat: node?.metadata?.mimoTtsFormat || config.mimoTtsFormat || defaultConfig.mimoTtsFormat,
         mimoVoiceDesignPrompt: node?.metadata?.mimoVoiceDesignPrompt || config.mimoVoiceDesignPrompt || defaultConfig.mimoVoiceDesignPrompt,
         geminiTtsVoice: node?.metadata?.geminiTtsVoice || config.geminiTtsVoice || defaultConfig.geminiTtsVoice,
+        miniMaxTtsVoice: node?.metadata?.miniMaxTtsVoice || config.miniMaxTtsVoice || defaultConfig.miniMaxTtsVoice,
+        miniMaxTtsFormat: node?.metadata?.miniMaxTtsFormat || config.miniMaxTtsFormat || defaultConfig.miniMaxTtsFormat,
+        miniMaxTtsSpeed: node?.metadata?.miniMaxTtsSpeed || config.miniMaxTtsSpeed || defaultConfig.miniMaxTtsSpeed,
         count: String(node?.metadata?.count || (mode === "image" ? config.canvasImageCount || config.count : config.count) || defaultConfig.count),
     };
 }
